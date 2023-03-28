@@ -1,0 +1,6 @@
+<div data-sly-test="${wcmmode.edit}" class="cq-placeholder"
+     data-emptytext="${component.title @i18n}"></div>
+<sly data-sly-use.model="com.mysite.core.models.MySiteTitleModel">
+<h1>${model.text}</h1>
+<p>${model.description}</p>
+</sly>
