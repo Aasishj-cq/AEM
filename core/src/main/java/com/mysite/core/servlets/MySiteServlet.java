@@ -1,15 +1,22 @@
 package com.mysite.core.servlets;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ValueMap;
+import org.apache.sling.api.servlets.ServletResolverConstants;
+import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
 import org.osgi.service.component.annotations.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /*
 * A Sling Servlet in Adobe Experience Manager (AEM) is a Java-based server-side component that handles HTTP requests (GET, POST, etc.)
@@ -27,29 +34,49 @@ import java.io.IOException;
 @Component(
         service = Servlet.class,
         property = {
-                "sling.servlet.methods=GET",
-                "sling.servlet.methods=POST",
-                "sling.servlet.paths=/bin/sample-servlet",
-                "sling.servlet.extensions=json"
+                ServletResolverConstants.SLING_SERVLET_METHODS+"=GET",
+                ServletResolverConstants.SLING_SERVLET_RESOURCE_TYPES+"=mysite/getServlet",
+                ServletResolverConstants.SLING_SERVLET_EXTENSIONS+"=json"
         }
 )
 /* SlingSafeMethodsServlet = supports GET, HEAD, OPTIONS http methods
 *  SlingAllMethodsServlet = supports all HTTP methods GET, POST, PUT, DELETE, HEAD, OPTIONS. Extending
 *  this you need to override doGet(), doPost(), doPut() etc
 * */
-public class MySiteServlet extends SlingAllMethodsServlet {
+public class MySiteServlet extends SlingSafeMethodsServlet {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySiteServlet.class);
 
     @Override
     protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response) throws IOException {
-        LOG.info("Received GET request on path {}",request.getPathInfo());
+
+        JsonObject jsonResponse = getJsonResponse(request);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
-
-        JsonObject jsonResponse = new JsonObject();
-        jsonResponse.addProperty("message", "Hello from AEM Sling Servlet!");
-
         response.getWriter().write(jsonResponse.toString());
+        /*
+        * response will be
+        * {
+        *  "message": "Hello from AEM Sling Servlet!",
+        *  "data": {
+        *    "pageTitle": "My Site"
+        *   }
+        *  }
+        */
+    }
+
+    private JsonObject getJsonResponse(SlingHttpServletRequest request) {
+        // you can get resource resolver in a servlet from request
+        ResourceResolver resolver = request.getResourceResolver();
+        ValueMap vm = resolver.getResource("/content/mysite/us/en/jcr:content").getValueMap();
+        JsonObject jsonResponse = new JsonObject();
+        Map<String, String> dataMap =new HashMap<>();
+        dataMap.put("pageTitle",vm.get("pageTitle",""));
+
+        Gson gson=new Gson();
+        JsonElement jsonElement=gson.toJsonTree(dataMap);
+        jsonResponse.addProperty("message", "Hello from AEM Sling Servlet!");
+        jsonResponse.add("data", jsonElement);
+        return jsonResponse;
     }
 }
